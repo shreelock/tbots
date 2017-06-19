@@ -17,6 +17,16 @@ class DBHelper_sc232:
 		self.conn.commit()
 		print "Created cmds_table"
 
+		stmt = "CREATE TABLE IF NOT EXISTS time_sheet (chat_id integer, time_code integer, status integer)"
+		self.conn.execute(stmt)
+		self.conn.commit()
+		print "Created time_sheet table"
+
+		stmt = "CREATE TABLE IF NOT EXISTS users (chat_id integer)"
+		self.conn.execute(stmt)
+		self.conn.commit()
+		print "Created users table"
+
 		print "Setup done"
 
 	def purge(self):
@@ -60,6 +70,8 @@ class DBHelper_sc232:
 		self.conn.execute(stmt,vals)
 
 
+
+
 	def add_command_to_history(self, chat_id, cmd, sent_at):
 		stmt = "INSERT INTO cmds_table (chat_id, cmd, sent_at) VALUES (?,?,?)"
 		vals = (chat_id, cmd, sent_at)
@@ -70,3 +82,41 @@ class DBHelper_sc232:
 	def get_last_cmd(self, chat_id):
 		stmt = "SELECT * from cmds_table WHERE chat_id = {} ORDER BY sent_at desc limit 1".format(chat_id)
 		return [x[1] for x in self.conn.execute(stmt)]
+
+
+
+
+	def add_time_row(self, chat_id, time_code):
+		stmt = "INSERT INTO time_sheet (chat_id, time_code, status) VALUES (?,?,?)"
+		vals = (chat_id, time_code, 0)
+		self.conn.execute(stmt, vals)
+		self.conn.commit()
+		print "Added {} into time sheet for chat_id {}".format(time_code, chat_id)
+
+
+	def update_time_row(self, chat_id, time_code):
+		stmt = "UPDATE time_sheet SET status = 1 WHERE chat_id = (?) AND time_code = (?)"
+		vals = (chat_id, time_code)
+		self.conn.execute(stmt, vals)
+		self.conn.commit()
+		print "Updated {} into time sheet for chat_id {}".format(time_code, chat_id)
+
+
+
+	def add_user(self, chat_id):
+		stmt = "INSERT INTO users (chat_id) VALUES ({})".format(chat_id)
+		self.conn.execute(stmt)
+		self.conn.commit()
+		print "Added user {} into db".format(chat_id)
+
+
+	def remove_user(self, chat_id):
+		stmt = "DELETE FROM users WHERE chat_id = ({})".format(chat_id)
+		self.conn.execute(stmt)
+		self.conn.commit()
+		print "Deleted user {} from db".format(chat_id)
+
+	def get_all_users(self):
+		stmt = "SELECT * FROM users"
+		return [x[0] for x in self.conn.execute(stmt)]
+
