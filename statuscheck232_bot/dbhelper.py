@@ -60,8 +60,6 @@ class DBHelper_sc232:
 		self.conn.execute(stmt,vals)
 
 
-
-
 	def add_command_to_history(self, chat_id, cmd, sent_at):
 		stmt = "INSERT INTO cmds_table (chat_id, cmd, sent_at) VALUES (?,?,?)"
 		vals = (chat_id, cmd, sent_at)

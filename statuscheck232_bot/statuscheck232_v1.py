@@ -148,11 +148,12 @@ def get_max_update_id(updates):
 def send_task_list_as_msg(chat_id):
 	listall = db.get_active_tasks(chat_id)
 	if len(listall)>0:
-		table=pt(["task","count","req"])
-		table.border=False
+		table=pt(["Count","Task"])
 		table.align="l"
+		table.left_padding_width=5
+		table.border=False
 		for l in listall:
-			table.add_row([l[1],l[2],l[3]])
+			table.add_row([l[2],l[1]])
 		send_message(table,chat_id)
 		send_menu_bar(chat_id)
 		
