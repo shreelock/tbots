@@ -16,12 +16,13 @@ URL="https://api.telegram.org/bot{}/".format(STATUSCHECK232_BOT_TOKEN)
 db = DBHelper_sc232()
 
 def wrong_input_response(chat_id):
-	msg="Unsupported. Send /help or /start or /menu"
+	msg="Unsupported. Send /help or /menu"
 	send_message(msg, chat_id)
 
 def handle_updates(updates):
 	for update in updates["result"]:
 		try:
+			add_command_to_history_boolean = True
 			text = update["message"]["text"]
 			chat_id = update["message"]["chat"]["id"]
 			previous_msg = ""
@@ -32,82 +33,58 @@ def handle_updates(updates):
 			all_tasks = db.get_active_task_names(chat_id)
 			keyboard=build_keyboard(all_tasks)
 
-			items=text.split(',')
-			[i.strip() for i in items]
-			print "Splitted : ",items
+			if text=='/start' or text=='/help':
+				
+				welcome_msg= "<b>Hi, Welcome to StatusCheckBot</b>\n1. Add tasks - /add\n2. Update the count - /update\n3. Delete - /delete\n4. List all - /list\n5. Menu - /menu"
+				send_message(welcome_msg, chat_id, True)
 
-			if len(items)==1:
-				print "Got Single Length Message."
-				if text=='/start' or text=='/help':
-					
-					welcome_msg= "<b>Hi, Welcome to StatusCheckBot</b>\n1. Add tasks - /add\n2. Update - /update\n3. Delete - /delete\n4. List all - /list\n5. Menu - /menu"
-					send_message(welcome_msg, chat_id, True)
+			elif text =='/list':
+				
+				send_task_list_as_msg(chat_id)
 
-				elif text =='/list':
-					
-					send_task_list_as_msg(chat_id)
+			elif text =='/menu':
 
-				elif text =='/menu':
+				send_menu_bar(chat_id)
 
-					send_menu_bar(chat_id)
+			elif text =='/delete' or text == '/update':
+				send_keyboard_with_message("Select from the Task List below", chat_id, keyboard)
 
-				elif text =='/delete' or text == '/update':
-					send_keyboard_with_message("Select from the Task List below", chat_id, keyboard)
-
-				elif text =='/add':
-					
-					add_msg_reply="Add your task below"
-					send_message(add_msg_reply, chat_id, True)
-
-				else:
-					if text in all_tasks :
-
-						if previous_msg =='/delete':
-							print "Previous Msg is /delete, proceeding to delete task."
-							print "Deleting {}".format(text)
-							db.remove_task(text, chat_id)
-							send_message("Deleting {}".format(text), chat_id, False)
-							send_task_list_as_msg(chat_id)
-
-						elif is_update_required():
-							print "Updating task."
-							db.update_task(text, chat_id)
-							send_message("Updated {}".format(text), chat_id, False)
-							send_task_list_as_msg(chat_id)
-
-					elif previous_msg =='/add':
-						print "Previous Msg is /add, proceeding to add task."
-						db.add_task(chat_id, text, 0)
-						send_message("Added {}".format(text), chat_id, False)
-						send_task_list_as_msg(chat_id)
-
-					else:
-						print "Previous command is : {}, Boolean comparison : {}".format(previous_msg, '/add' is previous_msg)
-						print "Don't know what to do with this Message. Error!"
-						wrong_input_response(chat_id)
-
-			elif len(items)==2:
-				print "Got 2 items"
-				if previous_msg=='/add':
-					[task_name, req_hrs] = text.split(',')
-					
-					task_name=str(task_name).strip()
-					req_hrs=str(req_hrs).strip()
-
-					if task_name in all_tasks:
-						already_added_task_msg = "Task Already Added! Cannot Add."
-						send_message(already_added_task_msg, chat_id, False)
-					else:
-						db.add_task(chat_id, task_name, req_hrs)
-						send_message("Added {}".format(text), chat_id, False)
-						send_task_list_as_msg(chat_id)
-				else:
-					wrong_input_response(chat_id)
+			elif text =='/add':
+				
+				add_msg_reply="Add your task below"
+				send_message(add_msg_reply, chat_id, True)
 
 			else:
-				wrong_input_response(chat_id)
+				if text in all_tasks :
+
+					if previous_msg =='/delete':
+						print "Previous Msg is /delete, proceeding to delete task."
+						print "Deleting {}".format(text)
+						db.remove_task(text, chat_id)
+						send_message("Deleting {}".format(text), chat_id, False)
+						send_task_list_as_msg(chat_id)
+
+					elif is_update_required():
+						print "Updating task."
+						db.update_task(text, chat_id)
+						send_message("Updated {}".format(text), chat_id, False)
+						send_task_list_as_msg(chat_id)
+
+				elif previous_msg =='/add':
+					print "Previous Msg is /add, proceeding to add task."
+					db.add_task(chat_id, text, 0)
+					send_message("Added {}".format(text), chat_id, False)
+					send_task_list_as_msg(chat_id)
+
+				else:
+					print "Previous command is : {}".format(previous_msg)
+					print "Don't know what to do with this Message. Error!"
+					add_command_to_history_boolean = False
+					wrong_input_response(chat_id)
 			
-			db.add_command_to_history(chat_id, text, int(time.time()))
+			if add_command_to_history_boolean == True:
+				db.add_command_to_history(chat_id, text, int(time.time()))
+
 		except Exception as e:
 			print e
 
@@ -161,7 +138,7 @@ def send_task_list_as_msg(chat_id):
 		send_message("No Tasks yet!", chat_id)
 
 def send_menu_bar(chat_id):
-	menu_bar="( /add | /update | /delete | /list )"
+	menu_bar=" /add | /update | /delete | /list | /help "
 	send_message(menu_bar, chat_id)
 
 
