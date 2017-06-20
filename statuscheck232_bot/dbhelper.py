@@ -101,6 +101,11 @@ class DBHelper_sc232:
 		self.conn.commit()
 		print "Updated {} into time sheet for chat_id {}".format(time_code, chat_id)
 
+	def get_time_row(self, chat_id, time_code):
+		stmt = "SELECT * FROM time_sheet WHERE chat_id = (?) AND time_code = (?)"
+		vals = (chat_id, time_code)
+		return [ x for x in self.conn.execute(stmt, vals)]
+
 
 
 	def add_user(self, chat_id):

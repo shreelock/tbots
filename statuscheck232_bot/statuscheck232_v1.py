@@ -69,8 +69,16 @@ def handle_updates(updates):
 
 				send_menu_bar(chat_id)
 
-			elif text =='/delete' or text == '/update':
-				send_keyboard_with_message("Select from the Task List below", chat_id, keyboard)
+			elif text =='/delete' :
+				
+				send_keyboard_with_message("Select the Task to be deleted", chat_id, keyboard)
+
+			elif text =='/update':
+
+				if is_update_required(chat_id):
+					send_keyboard_with_message("Select the Task from below", chat_id, keyboard)
+				else:
+					send_message("Task already updated for current timeslot", chat_id)
 
 			elif text =='/add':
 				
@@ -87,11 +95,16 @@ def handle_updates(updates):
 						send_message("Deleting {}".format(text), chat_id)
 						send_task_list_as_msg(chat_id)
 
-					elif is_update_required():
-						print "Updating task."
-						db.update_task(text, chat_id)
-						send_message("Updated {}".format(text), chat_id)
-						send_task_list_as_msg(chat_id)
+					else:
+						if is_update_required(chat_id):
+							print "Updating task."
+							db.update_task(text, chat_id)
+							db.update_time_row(chat_id, get_current_time_code())
+							send_message("Updated {}".format(text), chat_id)
+							send_task_list_as_msg(chat_id)
+						else:
+							print "Update Not Required."
+							send_message("Task already updated for current timeslot", chat_id)
 
 				elif previous_msg =='/add':
 					print "Previous Msg is /add, proceeding to add task."
@@ -119,7 +132,7 @@ def GET_JSON(url):
 
 def get_updates(offset=None):
 	print "Getting updates"
-	url = URL + "getUpdates?timeout=300"
+	url = URL + "getUpdates?timeout=60"
 	if offset:
 		url += "&offset={}".format(offset)
 	return GET_JSON(url)
@@ -161,13 +174,8 @@ def send_task_list_as_msg(chat_id):
 		send_message("No Tasks yet!", chat_id)
 
 def send_menu_bar(chat_id):
-	menu_bar=" /add | /update | /delete \n/register | /deregister \n/list | /help"
+	menu_bar="/add\t|\t/update\t|\t/delete\t|\t/list\n/register\t|\t/deregister\t|\t/help"
 	send_message(menu_bar, chat_id)
-
-
-def is_update_required():
-	return True
-
 
 
 
@@ -188,12 +196,53 @@ def register_user(chat_id):
 def deregister_user(chat_id):
 	db.remove_user(chat_id)
 
+def get_current_time_code():
+	return time.localtime().tm_hour + 100*time.localtime().tm_mday + 10000*time.localtime().tm_mon + 1000000*time.localtime().tm_year
+
+def is_update_required(chat_id):
+	current_time_code = get_current_time_code()
+	#found_timerow_for_current_time_code = ftfctc
+	ftfctc = db.get_time_row(chat_id, current_time_code)
+	print "time-row : ",ftfctc
+	if len(ftfctc) == 0:
+		db.add_time_row(chat_id, current_time_code)
+		return True
+	
+	else:
+		if db.get_time_row(chat_id, current_time_code)[0][2] == 0:
+			return True
+
+	return False
+
+
+def send_push_msgs():
+	# print time.localtime().tm_min, time.localtime().tm_sec
+	current_time_code = time.localtime().tm_hour + 100*time.localtime().tm_mday + 10000*time.localtime().tm_mon + 1000000*time.localtime().tm_year
+	current_time_min = time.localtime().tm_min
+	print "Current Time Code : ", current_time_code
+	print "Current Time Min : ", current_time_min
+
+	if current_time_min < 5 :
+		users_list = db.get_all_users()
+		for chat_id in users_list:
+			is_update_required(chat_id)
+
+	if current_time_min < 30 :
+		users_list = db.get_all_users()
+		for chat_id in users_list:
+			if is_update_required(chat_id):
+				print "Update is required at seding automated push msg"
+				all_tasks = db.get_active_task_names(chat_id)
+				keyboard=build_keyboard(all_tasks)
+				send_keyboard_with_message("Select what task is being done", chat_id, keyboard)
+
 
 def main():
 	# db.purge()
 	db.setup()
 	last_updated_id=None
 	while True:
+		send_push_msgs()
 		upds = get_updates(last_updated_id)
 		if len(upds["result"])>0:
 			handle_updates(upds)
