@@ -217,7 +217,7 @@ def is_update_required(chat_id):
 
 def send_push_msgs():
 	print time.localtime().tm_mon, time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
-
+	current_time_min = time.localtime().tm_min
 	#To Create a time row in beginning of the hour itself.
 	if current_time_min < 5 :
 		users_list = db.get_all_users()
