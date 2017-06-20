@@ -216,22 +216,20 @@ def is_update_required(chat_id):
 
 
 def send_push_msgs():
-	# print time.localtime().tm_min, time.localtime().tm_sec
-	current_time_code = time.localtime().tm_hour + 100*time.localtime().tm_mday + 10000*time.localtime().tm_mon + 1000000*time.localtime().tm_year
-	current_time_min = time.localtime().tm_min
-	print "Current Time Code : ", current_time_code
-	print "Current Time Min : ", current_time_min
+	print time.localtime().tm_mon, time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
 
+	#To Create a time row in beginning of the hour itself.
 	if current_time_min < 5 :
 		users_list = db.get_all_users()
 		for chat_id in users_list:
 			is_update_required(chat_id)
 
-	if current_time_min < 30 :
+	#To check status in later half of the hour, and not each minute
+	if current_time_min > 30 and current_time_min%5 == 0:
 		users_list = db.get_all_users()
 		for chat_id in users_list:
 			if is_update_required(chat_id):
-				print "Update is required at seding automated push msg"
+				print "Update is required at sending automated push msg"
 				all_tasks = db.get_active_task_names(chat_id)
 				keyboard=build_keyboard(all_tasks)
 				send_keyboard_with_message("Select what task is being done", chat_id, keyboard)
