@@ -13,6 +13,7 @@ from key import STATUSCHECK232_BOT_TOKEN
 #https://www.codementor.io/garethdwyer/building-a-telegram-bot-using-python-part-1-goi5fncay
 
 URL="https://api.telegram.org/bot{}/".format(STATUSCHECK232_BOT_TOKEN)
+NO_RESPONSE_TASK="No Response"
 db = DBHelper_sc232()
 
 def wrong_input_response(chat_id):
@@ -35,7 +36,7 @@ def handle_updates(updates):
 
 			if text=='/start' or text=='/help':
 				
-				welcome_msg= "<b>Hi, Welcome to StatusCheckBot</b>\n1. Add tasks - /add\n2. Update the count - /update\n3. Delete - /delete\n4. List all - /list\n5. Register for Alerts - /register\n6. Deregister - /deregister\n7. Menu - /menu"
+				welcome_msg= "<b>Hi, Welcome to StatusCheckBot</b>\nI ask you each hour for what you have been doing, keeping a log of time and work. :)\n1. Add tasks - /add\n2. Update the status - /update\n3. Delete - /delete\n4. List all - /list\n5. Register for Alerts - /register\n6. Deregister - /deregister\n7. Menu - /menu"
 				send_message(welcome_msg, chat_id, True)
 
 
@@ -73,16 +74,22 @@ def handle_updates(updates):
 				
 				send_keyboard_with_message("Select the Task to be deleted", chat_id, keyboard)
 
+			elif text =='/cancel' :
+
+				send_message("Cancelled.", chat_id)
+				send_menu_bar(chat_id)
+
 			elif text =='/update':
 
 				if is_update_required(chat_id):
 					send_keyboard_with_message("Select the Task from below", chat_id, keyboard)
 				else:
-					send_message("Task already updated for current timeslot", chat_id)
+					send_message("Task already updated for this hour.", chat_id)
+					send_menu_bar(chat_id)
 
 			elif text =='/add':
 				
-				add_msg_reply="Add your task below"
+				add_msg_reply="Add your task below, or /cancel"
 				send_message(add_msg_reply, chat_id, True)
 
 			else:
@@ -104,7 +111,8 @@ def handle_updates(updates):
 							send_task_list_as_msg(chat_id)
 						else:
 							print "Update Not Required."
-							send_message("Task already updated for current timeslot", chat_id)
+							send_message("Task already updated for this hour.", chat_id)
+							send_menu_bar(chat_id)
 
 				elif previous_msg =='/add':
 					print "Previous Msg is /add, proceeding to add task."
@@ -214,6 +222,22 @@ def is_update_required(chat_id):
 
 	return False
 
+def check_if_updated_last_hour(chat_id):
+	print "Got in If UPDATED"
+	last_2_hour_rows=db.get_last_2_hour_time_row(chat_id)
+	print "last hour row", last_2_hour_rows[0], last_2_hour_rows[1]
+	if last_2_hour_rows[1][2]==0:
+		print "Didnt respond Last hour."
+		if not db.has_task(NO_RESPONSE_TASK, chat_id) :
+			print "DB doesn't have NO_RESPONSE task added."
+			db.add_task(chat_id, NO_RESPONSE_TASK)
+		
+		print "DB has NO_RESPONSE task already added."
+		db.update_task(NO_RESPONSE_TASK, chat_id)
+		db.update_time_row(chat_id, last_2_hour_rows[1][1])
+		send_message("Marking No Response for last hour", chat_id)
+		send_task_list_as_msg(chat_id)
+
 
 def send_push_msgs():
 	print time.localtime().tm_mon, time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
@@ -223,16 +247,21 @@ def send_push_msgs():
 		users_list = db.get_all_users()
 		for chat_id in users_list:
 			is_update_required(chat_id)
+			try:
+				check_if_updated_last_hour(chat_id)
+			except Exception as e:
+				print e
+			
 
 	#To check status in later half of the hour, and not each minute
 	if current_time_min > 30 and current_time_min%5 == 0:
 		users_list = db.get_all_users()
 		for chat_id in users_list:
 			if is_update_required(chat_id):
-				print "Update is required at sending automated push msg"
+				print "Update is required at sending automated push msg."
 				all_tasks = db.get_active_task_names(chat_id)
 				keyboard=build_keyboard(all_tasks)
-				send_keyboard_with_message("Select what task is being done", chat_id, keyboard)
+				send_keyboard_with_message("Select what are you doing this hour!", chat_id, keyboard)
 
 
 def main():

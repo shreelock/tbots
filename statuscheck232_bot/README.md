@@ -16,3 +16,11 @@ Todo :
 
 1. Count reset at 0 hrs.
 2. View stats.
+
+
+Setup :
+
+sudo apt-get install python-pip
+pip install prettytable
+
+

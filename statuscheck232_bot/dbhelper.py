@@ -36,7 +36,7 @@ class DBHelper_sc232:
 		self.conn.commit()
 		print "Purged the table"
 
-	def add_task(self, chat_id, task_name, req_count):
+	def add_task(self, chat_id, task_name, req_count=0):
 		stmt = "INSERT INTO tasks_table (chat_id, task_name, count, req_count) VALUES (?,?,?,?)"
 		vals = (chat_id, task_name, '0', req_count)
 		self.conn.execute(stmt, vals)
@@ -69,7 +69,10 @@ class DBHelper_sc232:
 		vals = (task_name, chat_id)
 		self.conn.execute(stmt,vals)
 
-
+	def has_task(self, task_name, chat_id):
+		stmt = "SELECT * FROM tasks_table where task_name = (?) and chat_id=(?)"
+		vals = (task_name, chat_id)
+		return [1 for x in (self.conn.execute(stmt,vals))]
 
 
 	def add_command_to_history(self, chat_id, cmd, sent_at):
@@ -105,6 +108,11 @@ class DBHelper_sc232:
 		stmt = "SELECT * FROM time_sheet WHERE chat_id = (?) AND time_code = (?)"
 		vals = (chat_id, time_code)
 		return [ x for x in self.conn.execute(stmt, vals)]
+
+
+	def get_last_2_hour_time_row(self, chat_id):
+		stmt = "SELECT * FROM time_sheet WHERE chat_id = ({}) ORDER BY time_code desc limit 2".format(chat_id)
+		return [x for x in self.conn.execute(stmt)]
 
 
 
