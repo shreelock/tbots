@@ -270,11 +270,14 @@ def main():
 	last_updated_id=None
 	while True:
 		send_push_msgs()
-		upds = get_updates(last_updated_id)
-		if len(upds["result"])>0:
-			handle_updates(upds)
-			last_updated_id = get_max_update_id(upds)+1
-		# time.sleep(0.15) //Dont Need to sleep, We are using Long polling
+		try:
+			upds = get_updates(last_updated_id)
+			if len(upds["result"])>0:
+				handle_updates(upds)
+				last_updated_id = get_max_update_id(upds)+1
+			# time.sleep(0.15) //Dont Need to sleep, We are using Long polling
+		except Exception as e:
+			print e
 
 if __name__ == '__main__':
 	main()
