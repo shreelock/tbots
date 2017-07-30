@@ -213,14 +213,31 @@ def is_update_required(chat_id):
 	ftfctc = db.get_time_row(chat_id, current_time_code)
 	print "time-row : ",ftfctc
 	if len(ftfctc) == 0:
+		#There was no time row added for given time code. Hence we are adding one.
 		db.add_time_row(chat_id, current_time_code)
 		return True
-	
 	else:
+		#There is a time row added for the time code
 		if db.get_time_row(chat_id, current_time_code)[0][2] == 0:
-			return True
+			#Time row is not updated
+			if not is_an_engagement_in_progress(chat_id):
+				return True
 
 	return False
+
+def is_an_engagement_in_progress(chat_id):
+	engagement_cmds = ["/add", "/update", "/delete"]
+	previous_msg=""
+
+	if (len(db.get_last_cmd(chat_id))>0):
+				previous_msg = str(db.get_last_cmd(chat_id)[0])
+
+	if previous_msg in engagement_cmds:
+		print "Engagement is in progress, not requesting update."
+		return True
+
+	return False
+
 
 def check_if_updated_last_hour(chat_id):
 	print "Got in If UPDATED"
@@ -240,7 +257,7 @@ def check_if_updated_last_hour(chat_id):
 
 
 def send_push_msgs():
-	print time.localtime().tm_mon, time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
+	print time.localtime().tm_year, time.localtime().tm_mon,  time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
 	current_time_min = time.localtime().tm_min
 	#To Create a time row in beginning of the hour itself.
 	if current_time_min < 5 :
@@ -256,12 +273,15 @@ def send_push_msgs():
 	#To check status in later half of the hour, and not each minute
 	if current_time_min > 30 and current_time_min%5 == 0:
 		users_list = db.get_all_users()
+		if len(users_list) == 0:
+			print "No Users registered to request updates"
 		for chat_id in users_list:
 			if is_update_required(chat_id):
-				print "Update is required at sending automated push msg."
+				print "Update is required., Sending push msg requesting updatez"
 				all_tasks = db.get_active_task_names(chat_id)
+				print all_tasks
 				keyboard=build_keyboard(all_tasks)
-				send_keyboard_with_message("Select what are you doing this hour!", chat_id, keyboard)
+				send_keyboard_with_message("Select what are you doing this hour from the existing tasklist, or /add to add a new task!", chat_id, keyboard)
 
 
 def main():
@@ -269,8 +289,8 @@ def main():
 	db.setup()
 	last_updated_id=None
 	while True:
-		send_push_msgs()
 		try:
+			send_push_msgs()
 			upds = get_updates(last_updated_id)
 			if len(upds["result"])>0:
 				handle_updates(upds)
