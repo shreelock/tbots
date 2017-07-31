@@ -42,7 +42,7 @@ def handle_updates(updates):
 
 			elif text =='/list':
 				
-				send_task_list_as_msg(chat_id)
+				send_task_list_and_menu_as_msg(chat_id)
 
 
 			elif text =='/register':
@@ -74,8 +74,27 @@ def handle_updates(updates):
 				
 				send_keyboard_with_message("Select the Task to be deleted", chat_id, keyboard)
 
-			elif text =='/cancel' :
+			elif text =='/reset' :
+				all_tasks = db.get_active_task_names(chat_id)
+				keyboard=build_keyboard(all_tasks)
+				send_keyboard_with_message("Select the Task to reset the count. \n Select /resetall to reset everything.", chat_id, keyboard)
 
+			elif text =='/resetall' :
+				keyboard = build_yes_no_keyboard()
+				send_keyboard_with_message("Confirm?", chat_id, keyboard)
+			
+			elif text =='/yes' :
+				if previous_msg =='/resetall':
+					all_tasks = db.get_active_task_names(chat_id)
+					for tk in all_tasks:
+						reset_count(tk, chat_id)
+					send_message("Reset all counts.", chat_id)
+					send_task_list_and_menu_as_msg(chat_id)
+				else:
+					print "Don't know what to do with this Message. Error!"
+					wrong_input_response(chat_id)                                                                                                                 					
+
+			elif text in ['/cancel','/no'] :
 				send_message("Cancelled.", chat_id)
 				send_menu_bar(chat_id)
 
@@ -100,7 +119,14 @@ def handle_updates(updates):
 						print "Deleting {}".format(text)
 						db.remove_task(text, chat_id)
 						send_message("Deleting {}".format(text), chat_id)
-						send_task_list_as_msg(chat_id)
+						send_task_list_and_menu_as_msg(chat_id)
+
+
+					elif previous_msg =='/reset':
+						print "Reseting the count for this task"
+						reset_count(text, chat_id)
+						send_message("Reset count for {}".format(text), chat_id)
+						send_task_list_and_menu_as_msg(chat_id)
 
 					else:
 						if is_update_required(chat_id):
@@ -108,7 +134,7 @@ def handle_updates(updates):
 							db.update_task(text, chat_id)
 							db.update_time_row(chat_id, get_current_time_code())
 							send_message("Updated {}".format(text), chat_id)
-							send_task_list_as_msg(chat_id)
+							send_task_list_and_menu_as_msg(chat_id)
 						else:
 							print "Update Not Required."
 							send_message("Task already updated for this hour.", chat_id)
@@ -118,7 +144,7 @@ def handle_updates(updates):
 					print "Previous Msg is /add, proceeding to add task."
 					db.add_task(chat_id, text, 0)
 					send_message("Added {}".format(text), chat_id)
-					send_task_list_as_msg(chat_id)
+					send_task_list_and_menu_as_msg(chat_id)
 
 				else:
 					print "Previous command is : {}".format(previous_msg)
@@ -146,6 +172,11 @@ def get_updates(offset=None):
 	return GET_JSON(url)
 
 
+def reset_count(text, chat_id):
+	print "Ready to reset count of {}".format(text)
+	db.reset_task_count(text, chat_id)
+	print "Reset done"
+
 
 def send_keyboard_with_message(text, chat_id, reply_markup=None):
 	url = URL + "sendMessage?text={}&chat_id={}&parse_mode=Markdown".format(text, chat_id)
@@ -166,7 +197,7 @@ def get_max_update_id(updates):
         update_ids.append(int(update["update_id"]))
     return max(update_ids)
 
-def send_task_list_as_msg(chat_id):
+def send_task_list_and_menu_as_msg(chat_id):
 	listall = db.get_active_tasks(chat_id)
 	if len(listall)>0:
 		table=pt(["Count","Task"])
@@ -182,13 +213,20 @@ def send_task_list_as_msg(chat_id):
 		send_message("No Tasks yet!", chat_id)
 
 def send_menu_bar(chat_id):
-	menu_bar="/add\t|\t/update\t|\t/delete\t|\t/list\n/register\t|\t/deregister\t|\t/help"
+	menu_bar="/add\t|\t/update\t|\t/list\n/reset\t|\t/resetall\t|\t/delete\n/register\t|\t/deregister\t|\t/help"
+
 	send_message(menu_bar, chat_id)
 
 
 
 def build_keyboard(all_tasks):
     keyboard = [[item] for item in all_tasks]
+    reply_markup = {"keyboard":keyboard, "one_time_keyboard": True}
+    return json.dumps(reply_markup)
+
+
+def build_yes_no_keyboard():
+    keyboard = [["/yes","/no"]]
     reply_markup = {"keyboard":keyboard, "one_time_keyboard": True}
     return json.dumps(reply_markup)
 
@@ -205,6 +243,7 @@ def deregister_user(chat_id):
 	db.remove_user(chat_id)
 
 def get_current_time_code():
+	print time.localtime().tm_year, time.localtime().tm_mon,  time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
 	return time.localtime().tm_hour + 100*time.localtime().tm_mday + 10000*time.localtime().tm_mon + 1000000*time.localtime().tm_year
 
 def is_update_required(chat_id):
@@ -253,12 +292,14 @@ def check_if_updated_last_hour(chat_id):
 		db.update_task(NO_RESPONSE_TASK, chat_id)
 		db.update_time_row(chat_id, last_2_hour_rows[1][1])
 		send_message("Marking No Response for last hour", chat_id)
-		send_task_list_as_msg(chat_id)
+		send_task_list_and_menu_as_msg(chat_id)
 
 
 def send_push_msgs():
-	print time.localtime().tm_year, time.localtime().tm_mon,  time.localtime().tm_mday, time.localtime().tm_hour, time.localtime().tm_min, time.localtime().tm_sec
 	current_time_min = time.localtime().tm_min
+	if time.tzname == "UTC":
+		 current_time_min = current_time_min + 30 #INDIAHACK IST is 30 mins offset by 
+
 	#To Create a time row in beginning of the hour itself.
 	if current_time_min < 5 :
 		users_list = db.get_all_users()
@@ -281,7 +322,7 @@ def send_push_msgs():
 				all_tasks = db.get_active_task_names(chat_id)
 				print all_tasks
 				keyboard=build_keyboard(all_tasks)
-				send_keyboard_with_message("Select what are you doing this hour from the existing tasklist, or /add to add a new task!", chat_id, keyboard)
+				send_keyboard_with_message("Select what are you doing this hour from the existing tasklist. \n Select /add to add a new task!", chat_id, keyboard)
 
 
 def main():

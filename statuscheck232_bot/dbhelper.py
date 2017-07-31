@@ -69,6 +69,11 @@ class DBHelper_sc232:
 		vals = (task_name, chat_id)
 		self.conn.execute(stmt,vals)
 
+	def reset_task_count(self, task_name, chat_id):
+		stmt = "UPDATE tasks_table SET count=0 WHERE task_name = (?) AND chat_id=(?)"
+		vals = (task_name, chat_id)
+		self.conn.execute(stmt,vals)
+
 	def has_task(self, task_name, chat_id):
 		stmt = "SELECT * FROM tasks_table where task_name = (?) and chat_id=(?)"
 		vals = (task_name, chat_id)
